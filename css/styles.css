@@ -3,6 +3,11 @@
   transition: height 200ms ease;
 }
 .react-grid-item {
+  display: flex;
+
+  flex-direction: column;
+  flex-wrap: nowrap;
+
   transition: all 200ms ease;
   transition-property: left, top;
 }
@@ -111,4 +116,47 @@
 .react-grid-item > .react-resizable-handle.react-resizable-handle-s {
   bottom: 0;
   transform: rotate(45deg);
+}
+
+.react-grid-item-tabs {
+  display: flex;
+  
+  flex-direction: row;
+  flex-wrap: nowrap;
+
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.react-grid-item-tab {
+  padding: 0 10px;
+
+  border-right: 1px solid rgba(0, 0, 0, 0.4);
+
+  cursor: pointer;
+}
+
+.react-grid-item-tab--selected {
+  background: darkgrey;
+}
+
+.react-grid-item-content {
+  flex: 1 0 0;
+}
+
+.react-grid-item-content {
+  flex: 1 0 0;
+}
+
+.element {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+  
+  width: 100%;
+  height: 100%;
+}
+
+.static {
+  background: #cce;
 }
