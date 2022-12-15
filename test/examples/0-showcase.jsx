@@ -191,6 +191,8 @@ function generateLayout() {
       y: Math.floor(i / 6) * y,
       w: 2,
       h: y,
+      minW: 2,
+      minH: 2,
       i: isGroup
         ? Array(Math.ceil(Math.random() * 4))
             .fill(null)

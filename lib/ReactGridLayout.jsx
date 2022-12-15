@@ -16,7 +16,8 @@ import {
   moveElement,
   noop,
   synchronizeLayoutWithChildren,
-  withLayoutItem
+  withLayoutItem,
+  memoize
 } from "./utils";
 
 import { calcXY } from "./calculateUtils";
@@ -57,7 +58,6 @@ type State = {
 };
 
 import type { Props, DefaultProps } from "./ReactGridLayoutPropTypes";
-import { memoize } from "lodash";
 
 // End Types
 
@@ -776,7 +776,7 @@ export default class ReactGridLayout extends React.Component<Props, State> {
   };
 
   render(): React.Element<"div"> {
-    const { className, style, isDroppable, innerRef, layout } = this.props;
+    const { className, style, isDroppable, innerRef } = this.props;
 
     const mergedClassName = clsx(layoutClassName, className);
     const mergedStyle = {
@@ -794,7 +794,7 @@ export default class ReactGridLayout extends React.Component<Props, State> {
         onDragEnter={isDroppable ? this.onDragEnter : noop}
         onDragOver={isDroppable ? this.onDragOver : noop}
       >
-        {layout.map(item =>
+        {this.state.layout.map(item =>
           this.processGridItem(item)
         )}
         {isDroppable &&
