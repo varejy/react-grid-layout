@@ -12,7 +12,8 @@ module.exports = {
       }
     ],
     "@babel/react",
-    "@babel/preset-flow"
+    "@babel/preset-flow",
+    ["@babel/preset-react", {"runtime": "automatic"}]
   ],
   plugins: [
     "@babel/plugin-transform-flow-comments",
