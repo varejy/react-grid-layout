@@ -11,7 +11,6 @@ module.exports = {
         targets: es6Compat ? "maintained node versions" : "> 0.25%, not dead"
       }
     ],
-    "@babel/react",
     "@babel/preset-flow",
     ["@babel/preset-react", {"runtime": "automatic"}]
   ],
