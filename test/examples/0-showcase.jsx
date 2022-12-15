@@ -5,7 +5,73 @@ import Responsive from '../../lib/ResponsiveReactGridLayout';
 import WidthProvider from '../../lib/components/WidthProvider';
 import type {CompactType, Layout, LayoutItem, ReactChildren} from '../../lib/utils';
 import type {Breakpoint, OnLayoutChangeCallback} from '../../lib/responsiveUtils';
+import { Children } from "react/cjs/react.production.min";
+import useInternal from "../util/useInternal";
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
+
+const GroupLayout = React.forwardRef(
+  (
+    {
+      children,
+      elements,
+      ...props
+    },
+    ref
+  ) => {
+    const elementKeys = React.useMemo(() => elements.map((element) => element.key), [ elements ]);
+
+    const [selectedElementKey, setSelectedElementKey] = useInternal(elementKeys[0]);
+    
+    const selectedElement = React.useMemo(() => elements.find((element) => element.key === selectedElementKey), selectedElementKey)
+
+    const content = React.useMemo(() => (
+      <>
+        <div className="react-grid-item-tabs">
+          {elementKeys.map((elementKey) => (
+            <div
+              className={`react-grid-item-tab ${elementKey === selectedElementKey ? "react-grid-item-tab--selected" : ""}`}
+              onClick={() => setSelectedElementKey(elementKey)}
+            >
+              {elementKey}
+            </div>
+          ))}
+        </div>
+        <div className="react-grid-item-content">
+          {selectedElement}
+        </div>
+        {children}
+      </>
+    ), [selectedElementKey])
+    
+    return (
+      <div
+        ref={ref}
+        {...props}
+      >
+        {content}
+      </div>
+    )
+  }
+)
+
+function generateDOMElement(element) {
+  return Array.isArray(element.i)
+    ? element.i.map((i) => generateDOMElement({ ...element, i }))
+    : (
+      <div key={element.i} className={`element ${element.static ? "static" : ""}`}>
+        {element.static ? (
+          <span
+            className="text"
+            title="This item is static and cannot be removed or resized."
+          >
+            Static - {element.i}
+          </span>
+        ) : (
+          <span className="text">{element.i}</span>
+        )}
+      </div>
+    )
+}
 
 type Props = {|
   className: string,
@@ -40,22 +106,7 @@ export default class ShowcaseLayout extends React.Component<Props, State> {
   }
 
   generateDOM(): ReactChildren {
-    return _.map(this.state.layouts.lg, function(l, i) {
-      return (
-        <div key={i} className={l.static ? "static" : ""}>
-          {l.static ? (
-            <span
-              className="text"
-              title="This item is static and cannot be removed or resized."
-            >
-              Static - {i}
-            </span>
-          ) : (
-            <span className="text">{i}</span>
-          )}
-        </div>
-      );
-    });
+    return _.map(this.state.layouts.lg, generateDOMElement).flat(1);
   }
 
   onBreakpointChange: (Breakpoint) => void = (breakpoint) => {
@@ -118,6 +169,8 @@ export default class ShowcaseLayout extends React.Component<Props, State> {
           useCSSTransforms={this.state.mounted}
           compactType={this.state.compactType}
           preventCollision={!this.state.compactType}
+          useGroups
+          GroupLayout={GroupLayout}
         >
           {this.generateDOM()}
         </ResponsiveReactGridLayout>
@@ -127,15 +180,26 @@ export default class ShowcaseLayout extends React.Component<Props, State> {
 }
 
 function generateLayout() {
+  let index = 0;
+  
   return _.map(_.range(0, 25), function(item, i) {
+    var isGroup = Math.random() < 0.1;
     var y = Math.ceil(Math.random() * 4) + 1;
+
     return {
       x: Math.round(Math.random() * 5) * 2,
       y: Math.floor(i / 6) * y,
       w: 2,
       h: y,
-      i: i.toString(),
-      static: Math.random() < 0.05
+      minW: 2,
+      minH: 2,
+      i: isGroup
+        ? Array(Math.ceil(Math.random() * 4))
+            .fill(null)
+            .map(() => (index++).toString())
+        : (index++).toString(),
+      static: Math.random() < 0.05,
+      groupable: true
     };
   });
 }

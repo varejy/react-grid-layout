@@ -11,11 +11,13 @@ import {
   compactType,
   fastRGLPropsEqual,
   getAllCollisions,
+  getChildren,
   getLayoutItem,
   moveElement,
   noop,
   synchronizeLayoutWithChildren,
-  withLayoutItem
+  withLayoutItem,
+  memoize
 } from "./utils";
 
 import { calcXY } from "./calculateUtils";
@@ -500,7 +502,8 @@ export default class ReactGridLayout extends React.Component<Props, State> {
       rowHeight,
       maxRows,
       useCSSTransforms,
-      transformScale
+      transformScale,
+      GroupLayout
     } = this.props;
 
     // {...this.state.activeDrag} is pretty slow, actually
@@ -520,14 +523,22 @@ export default class ReactGridLayout extends React.Component<Props, State> {
         rowHeight={rowHeight}
         isDraggable={false}
         isResizable={false}
+        isGroupable={true}
         isBounded={false}
         useCSSTransforms={useCSSTransforms}
         transformScale={transformScale}
+        GroupLayout={GroupLayout}
       >
-        <div />
+        {[<div />]}
       </GridItem>
     );
   }
+
+  getChildren = memoize(
+    function (layoutItem) {
+      return getChildren(this.props.children, layoutItem)
+    }
+  );
 
   /**
    * Given a grid item, set its style attributes & surround in a <Draggable>.
@@ -535,12 +546,11 @@ export default class ReactGridLayout extends React.Component<Props, State> {
    * @return {Element}       Element wrapped in draggable and properly placed.
    */
   processGridItem(
-    child: ReactElement<any>,
+    layoutItem: LayoutItem,
     isDroppingItem?: boolean
   ): ?ReactElement<any> {
-    if (!child || !child.key) return;
-    const l = getLayoutItem(this.state.layout, String(child.key));
-    if (!l) return null;
+    const children = this.getChildren(layoutItem);
+
     const {
       width,
       cols,
@@ -556,7 +566,8 @@ export default class ReactGridLayout extends React.Component<Props, State> {
       draggableCancel,
       draggableHandle,
       resizeHandles,
-      resizeHandle
+      resizeHandle,
+      GroupLayout
     } = this.props;
     const { mounted, droppingPosition } = this.state;
 
@@ -564,20 +575,22 @@ export default class ReactGridLayout extends React.Component<Props, State> {
     // If an item is static, it can't be manipulated by default.
     // Any properties defined directly on the grid item will take precedence.
     const draggable =
-      typeof l.isDraggable === "boolean"
-        ? l.isDraggable
-        : !l.static && isDraggable;
+      typeof layoutItem.isDraggable === "boolean"
+        ? layoutItem.isDraggable
+        : !layoutItem.static && isDraggable;
     const resizable =
-      typeof l.isResizable === "boolean"
-        ? l.isResizable
-        : !l.static && isResizable;
-    const resizeHandlesOptions = l.resizeHandles || resizeHandles;
+      typeof layoutItem.isResizable === "boolean"
+        ? layoutItem.isResizable
+        : !layoutItem.static && isResizable;
+    const resizeHandlesOptions = layoutItem.resizeHandles || resizeHandles;
 
     // isBounded set on child if set on parent, and child is not explicitly false
-    const bounded = draggable && isBounded && l.isBounded !== false;
+    const bounded = draggable && isBounded && layoutItem.isBounded !== false;
 
     return (
       <GridItem
+        // TODO: Optimize
+        key={children.map((child) => child.key).join('-')}
         containerWidth={width}
         cols={cols}
         margin={margin}
@@ -594,25 +607,27 @@ export default class ReactGridLayout extends React.Component<Props, State> {
         onResizeStop={this.onResizeStop}
         isDraggable={draggable}
         isResizable={resizable}
+        isGroupable={true}
         isBounded={bounded}
         useCSSTransforms={useCSSTransforms && mounted}
         usePercentages={!mounted}
         transformScale={transformScale}
-        w={l.w}
-        h={l.h}
-        x={l.x}
-        y={l.y}
-        i={l.i}
-        minH={l.minH}
-        minW={l.minW}
-        maxH={l.maxH}
-        maxW={l.maxW}
-        static={l.static}
+        w={layoutItem.w}
+        h={layoutItem.h}
+        x={layoutItem.x}
+        y={layoutItem.y}
+        i={layoutItem.i}
+        minH={layoutItem.minH}
+        minW={layoutItem.minW}
+        maxH={layoutItem.maxH}
+        maxW={layoutItem.maxW}
+        static={layoutItem.static}
         droppingPosition={isDroppingItem ? droppingPosition : undefined}
         resizeHandles={resizeHandlesOptions}
         resizeHandle={resizeHandle}
+        GroupLayout={GroupLayout}
       >
-        {child}
+        {children}
       </GridItem>
     );
   }
@@ -779,8 +794,8 @@ export default class ReactGridLayout extends React.Component<Props, State> {
         onDragEnter={isDroppable ? this.onDragEnter : noop}
         onDragOver={isDroppable ? this.onDragOver : noop}
       >
-        {React.Children.map(this.props.children, child =>
-          this.processGridItem(child)
+        {this.state.layout.map(item =>
+          this.processGridItem(item)
         )}
         {isDroppable &&
           this.state.droppingDOMNode &&

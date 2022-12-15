@@ -1,8 +1,9 @@
 // @flow
-import React from "react";
+import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { DraggableCore } from "react-draggable";
 import { Resizable } from "react-resizable";
+import { Groupable } from "./Groupable";
 import { fastPositionEqual, perc, setTopLeft, setTransform } from "./utils";
 import {
   calcGridItemPosition,
@@ -58,6 +59,7 @@ type Props = {
   maxRows: number,
   isDraggable: boolean,
   isResizable: boolean,
+  isGroupable: boolean,
   isBounded: boolean,
   static?: boolean,
   useCSSTransforms?: boolean,
@@ -80,7 +82,7 @@ type Props = {
   maxW: number,
   minH: number,
   maxH: number,
-  i: string,
+  i: string | string[],
 
   resizeHandles?: ResizeHandleAxis[],
   resizeHandle?: ResizeHandle,
@@ -90,7 +92,9 @@ type Props = {
   onDragStop?: GridItemCallback<GridDragEvent>,
   onResize?: GridItemCallback<GridResizeEvent>,
   onResizeStart?: GridItemCallback<GridResizeEvent>,
-  onResizeStop?: GridItemCallback<GridResizeEvent>
+  onResizeStop?: GridItemCallback<GridResizeEvent>,
+
+  GroupLayout?: PropTypes.ReactComponentLike
 };
 
 type DefaultProps = {
@@ -110,7 +114,7 @@ type DefaultProps = {
 export default class GridItem extends React.Component<Props, State> {
   static propTypes = {
     // Children must be only a single element
-    children: PropTypes.element,
+    children: PropTypes.arrayOf(PropTypes.element),
 
     // General grid attributes
     cols: PropTypes.number.isRequired,
@@ -156,7 +160,7 @@ export default class GridItem extends React.Component<Props, State> {
     },
 
     // ID is nice to have for callbacks
-    i: PropTypes.string.isRequired,
+    i: PropTypes.oneOfType([ PropTypes.string, PropTypes.arrayOf(PropTypes.string) ]).isRequired,
 
     // Resize handle options
     resizeHandles: resizeHandleAxesType,
@@ -173,6 +177,7 @@ export default class GridItem extends React.Component<Props, State> {
     // Flags
     isDraggable: PropTypes.bool.isRequired,
     isResizable: PropTypes.bool.isRequired,
+    isGroupable: PropTypes.bool.isRequired,
     isBounded: PropTypes.bool.isRequired,
     static: PropTypes.bool,
 
@@ -421,6 +426,26 @@ export default class GridItem extends React.Component<Props, State> {
   }
 
   /**
+   * Mix a Resizable instance into a child.
+   * @param  {Element[]}  children  Children.
+   * @param  {Component}  Container React wrapper component.
+   * @return {Element}              Child wrapped in Resizable.
+   */
+  mixinGroupable(
+    elements: ReactElement<any>[],
+    Container: React.Component | React.FunctionComponent | React.ComponentClass,
+    isGroupable: boolean
+  ): ReactElement<any> {
+    return (
+      <Groupable
+        disabled={!isGroupable}
+        elements={elements}
+        Container={Container}
+      />
+    );
+  }
+
+  /**
    * onDragStart event handler
    * @param  {Event}  e             event data
    * @param  {Object} callbackData  an object with node, delta and position information
@@ -622,8 +647,10 @@ export default class GridItem extends React.Component<Props, State> {
       h,
       isDraggable,
       isResizable,
+      isGroupable,
       droppingPosition,
-      useCSSTransforms
+      useCSSTransforms,
+      GroupLayout
     } = this.props;
 
     const pos = calcGridItemPosition(
@@ -634,14 +661,16 @@ export default class GridItem extends React.Component<Props, State> {
       h,
       this.state
     );
-    const child = React.Children.only(this.props.children);
+
+    // Grouable support.
+    let newChild = this.mixinGroupable(this.props.children, GroupLayout, isGroupable);
 
     // Create the child element. We clone the existing element but modify its className and style.
-    let newChild = React.cloneElement(child, {
+    newChild = React.cloneElement(newChild, {
       ref: this.elementRef,
       className: clsx(
         "react-grid-item",
-        child.props.className,
+        newChild.props.className,
         this.props.className,
         {
           static: this.props.static,
@@ -655,7 +684,7 @@ export default class GridItem extends React.Component<Props, State> {
       // We can set the width and height on the child, but unfortunately we can't set the position.
       style: {
         ...this.props.style,
-        ...child.props.style,
+        ...newChild.props.style,
         ...this.createStyle(pos)
       }
     });
